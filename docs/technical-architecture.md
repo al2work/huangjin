@@ -134,18 +134,25 @@ GET /api/history?symbol=GOLD&period=24h
 ## 7. 部署配置
 
 ### 7.1 容器化部署 (Docker)
-项目支持标准的 Docker 容器化部署，采用多阶段构建（Multi-stage Build）以优化镜像体积。
+项目支持标准的 Docker 容器化部署，采用多阶段构建（Multi-stage Build）以优化镜像体积。为了确保环境一致性和系统兼容性，生产环境使用 **Ubuntu 24.04** 作为基础镜像。
 
 **构建流程：**
-1. **base**: 基础 Node.js Alpine 镜像
-2. **deps**: 安装项目依赖
+1. **base**: 基于 `ubuntu:24.04`，安装 Node.js 20 (LTS) 环境
+2. **deps**: 安装项目依赖 (npm ci)
 3. **builder**: 构建 Next.js 应用，启用 `output: "standalone"`
-4. **runner**: 生产环境运行镜像，仅包含必要的 standalone 文件和静态资源
+4. **runner**: 生产环境运行镜像，基于 `ubuntu:24.04`，仅包含必要的 standalone 文件和静态资源
 
 **Dockerfile 特性：**
-- 基于 `node:18-alpine`，体积小且安全
+- 基于 `ubuntu:24.04`，提供完整的系统库支持
+- 使用 NodeSource 安装最新的稳定版 Node.js
 - 非 root 用户运行 (nextjs)，提高安全性
 - 利用 Next.js 的 Standalone 模式，大幅减少镜像体积
+
+**自动化部署 (Makefile)：**
+项目包含 `Makefile` 以简化本地开发和部署流程：
+- `make deploy`: 一键构建并部署到本地 Docker 环境
+- `make build`: 仅构建镜像
+- `make logs`: 查看运行日志
 
 ### 7.2 环境变量
 ```

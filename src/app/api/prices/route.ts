@@ -108,14 +108,8 @@ export async function GET() {
       }
     }
 
-    // Platinum (Fallback or Static as SGE graph not found easily)
-    // We'll return 0 or keep the old Eastmoney logic if strictly needed,
-    // but to be clean we'll just return a placeholder or estimated value
-    // to avoid breaking the UI.
-    const platinumPrice = 0;
-    const platinumChange = 0;
-    const platinumChangePercent = 0;
-
+    // Platinum removed as SGE does not provide this data
+    
     const prices = {
       GOLD: {
         symbol: "Au99.99",
@@ -131,14 +125,6 @@ export async function GET() {
         price: Number(silverPrice.toFixed(2)),
         change: Number(silverChange.toFixed(2)),
         changePercent: Number(silverChangePercent.toFixed(2)),
-        timestamp: now,
-      },
-      PLATINUM: {
-        symbol: "Pt99.95",
-        name: "铂金9995",
-        price: platinumPrice,
-        change: platinumChange,
-        changePercent: platinumChangePercent,
         timestamp: now,
       },
     };

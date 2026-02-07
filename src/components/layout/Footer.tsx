@@ -5,26 +5,14 @@ export function Footer() {
   return (
     <footer className="w-full border-t bg-background py-6 md:py-12">
       <div className="container mx-auto px-4 md:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="space-y-3">
-            <Link href="/" className="flex items-center gap-2 font-bold text-xl text-primary-red">
-              <Coins className="h-6 w-6 text-primary-gold" />
-              <span>黄金.xin</span>
-            </Link>
-            <p className="text-sm text-muted-foreground">
-              专业的实时黄金价格展示平台，为您提供准确的市场数据和深度的行情分析。
-            </p>
-          </div>
-          
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <h3 className="font-medium mb-3">快速链接</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/" className="hover:text-primary-red">首页</Link></li>
-              <li><Link href="/details/gold" className="hover:text-primary-red">价格详情</Link></li>
-              <li><Link href="/analysis" className="hover:text-primary-red">市场分析</Link></li>
             </ul>
           </div>
-          
+
           <div>
             <h3 className="font-medium mb-3">关于我们</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
@@ -33,7 +21,7 @@ export function Footer() {
               <li><Link href="/privacy" className="hover:text-primary-red">隐私政策</Link></li>
             </ul>
           </div>
-          
+
           <div>
             <h3 className="font-medium mb-3">关注我们</h3>
             <p className="text-sm text-muted-foreground mb-2">
@@ -44,9 +32,9 @@ export function Footer() {
             </div>
           </div>
         </div>
-        
+
         <div className="mt-8 pt-8 border-t text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} 黄金.xin (HuangJin.xin). All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} huangjin.xin. All rights reserved.</p>
         </div>
       </div>
     </footer>

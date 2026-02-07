@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "黄金.xin - 实时黄金价格展示",
+  title: "信黄金 - 实时黄金价格展示",
   description: "中国市场专业的实时黄金价格、历史趋势及市场分析平台",
-  keywords: "黄金价格, 实时金价, 黄金行情, 黄金走势图, huangjin.xin",
+  keywords: "黄金价格, 实时金价, 黄金行情, 黄金走势图, huangjin.xin, 信黄金",
 };
 
 export default function RootLayout({

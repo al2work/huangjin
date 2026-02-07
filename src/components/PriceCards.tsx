@@ -18,18 +18,23 @@ interface PriceData {
 interface PricesResponse {
   GOLD: PriceData;
   SILVER: PriceData;
-  PLATINUM: PriceData;
 }
 
-export function PriceCards() {
+export function PriceCards({
+  onSelectSymbol,
+  selectedSymbol,
+}: {
+  onSelectSymbol?: (symbol: string) => void;
+  selectedSymbol?: string;
+}) {
   const { data, error, isLoading } = useSWR<PricesResponse>("/api/prices", fetcher, {
     refreshInterval: 5000,
   });
 
   if (error || (data && "error" in data)) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {[1, 2].map((i) => (
           <div key={i} className="rounded-xl border bg-card text-card-foreground shadow-sm p-6 flex items-center justify-center h-40">
             <div className="text-muted-foreground text-center">
               <p>数据获取失败</p>
@@ -41,10 +46,10 @@ export function PriceCards() {
     );
   }
 
-  if (isLoading || !data || !data.GOLD || !data.SILVER || !data.PLATINUM) {
+  if (isLoading || !data || !data.GOLD || !data.SILVER) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse">
+        {[1, 2].map((i) => (
           <div key={i} className="h-40 rounded-xl bg-muted"></div>
         ))}
       </div>
@@ -64,16 +69,10 @@ export function PriceCards() {
       barColor: "bg-gray-400",
       data: data.SILVER,
     },
-    {
-      key: "PLATINUM",
-      color: "text-primary-red",
-      barColor: "bg-blue-400",
-      data: data.PLATINUM,
-    },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {cards.map((card) => {
         // Defensive check: ensure card.data exists
         if (!card.data) return null;
@@ -81,13 +80,18 @@ export function PriceCards() {
         const change = card.data.change ?? 0;
         const changePercent = card.data.changePercent ?? 0;
         const price = card.data.price ?? 0;
-        
+
         const isUp = change >= 0;
         const ColorClass = isUp ? "text-primary-red" : "text-green-600";
         const Icon = isUp ? ArrowUp : ArrowDown;
 
         return (
-          <div key={card.key} className="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
+          <div
+            key={card.key}
+            onClick={() => onSelectSymbol?.(card.key)}
+            className={`rounded-xl border bg-card text-card-foreground shadow-sm p-6 cursor-pointer transition-all ${selectedSymbol === card.key ? "ring-2 ring-primary-gold" : "hover:border-primary-gold/50"
+              }`}
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 <span className={`w-2 h-8 rounded-full ${card.barColor}`}></span>
