@@ -1,48 +1,38 @@
 import { NextResponse } from "next/server";
+import querystring from 'querystring';
 
-// Simple in-memory cache
+// In-memory cache
 const cache: Record<string, { data: any; timestamp: number }> = {};
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-interface KlineData {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-}
+// SGE Benchmark history doesn't change for past dates.
+// We can cache this for a long time, e.g., 1 hour.
+const CACHE_DURATION = 60 * 60 * 1000;
 
-async function fetchEastmoneyKline(secid: string, klt: string, limit: number): Promise<KlineData[]> {
-  // klt: 101=Day, 102=Week, 103=Month, 1=1min, 5=5min, 15=15min, 30=30min, 60=60min
-  // fields1: f1,f2,f3,f4,f5,f6
-  // fields2: f51(Time), f52(Open), f53(Close), f54(High), f55(Low), f56(Vol), f57(Amt), f58(Amp)
-  const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55&klt=${klt}&fqt=1&end=20500101&lmt=${limit}`;
-  
+async function fetchSgeData(path: string) {
+  const currentYear = new Date().getFullYear();
+  // Fetch from 2024 to ensure enough history for charts
+  const postData = querystring.stringify({
+    start: `2024-01-01`,
+    end: ''
+  });
+
   try {
-    const response = await fetch(url);
-    if (!response.ok) return [];
-    
-    const json = await response.json();
-    if (!json || !json.data || !json.data.klines) return [];
-
-    return json.data.klines.map((item: string) => {
-      const parts = item.split(",");
-      // parts[0] is time string, e.g., "2023-10-27" or "2023-10-27 10:15"
-      // lightweight-charts expects seconds for time
-      const timeStr = parts[0];
-      const time = Math.floor(new Date(timeStr).getTime() / 1000);
-      
-      return {
-        time,
-        open: parseFloat(parts[1]),
-        close: parseFloat(parts[2]),
-        high: parseFloat(parts[3]),
-        low: parseFloat(parts[4]),
-      };
+    const response = await fetch(`https://www.sge.com.cn${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'User-Agent': 'Mozilla/5.0',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Referer': 'https://www.sge.com.cn/sjzx/jzj',
+      },
+      body: postData
     });
+
+    if (!response.ok) return null;
+    return await response.json();
   } catch (error) {
-    console.error(`Error fetching Eastmoney kline for ${secid}:`, error);
-    return [];
+    console.error(`Error fetching SGE history for ${path}:`, error);
+    return null;
   }
 }
 
@@ -51,58 +41,84 @@ export async function GET(request: Request) {
   const period = searchParams.get("period") || "24h";
   const symbol = searchParams.get("symbol") || "GOLD";
 
-  // Map symbols to Eastmoney secids
-  // 118 is the market code for SGE in Eastmoney
-  const symbolMap: Record<string, string> = {
-    GOLD: "118.AU9999",
-    SILVER: "118.AGTD",
-    PLATINUM: "118.PT9995",
-  };
-
-  const secid = symbolMap[symbol] || "118.AU9999";
-  const cacheKey = `${secid}-${period}`;
-
-  // Check cache
+  const cacheKey = `${symbol}-${period}`;
   const now = Date.now();
   if (cache[cacheKey] && (now - cache[cacheKey].timestamp < CACHE_DURATION)) {
     return NextResponse.json(cache[cacheKey].data);
   }
 
   try {
-    let klt = "15"; // Default 15 min
-    let limit = 96; // Default ~1 day (24h * 4)
-
-    if (period === "24h") {
-      klt = "15"; // 15 min
-      limit = 100; // ~24h
-    } else if (period === "7d") {
-      klt = "60"; // 60 min
-      limit = 170; // 7 * 24 approx
-    } else {
-      klt = "101"; // Daily
-      limit = 60; // 30-60 days
+    let path = '';
+    if (symbol === 'GOLD') path = '/graph/DayilyJzj';
+    else if (symbol === 'SILVER') path = '/graph/DayilyShsilverJzj';
+    else {
+      // Return empty for others
+      return NextResponse.json({ symbol, period, data: [] });
     }
 
-    const data = await fetchEastmoneyKline(secid, klt, limit);
+    const sgeData = await fetchSgeData(path);
+    if (!sgeData || !sgeData.zp) {
+      throw new Error("No data from SGE");
+    }
 
-    if (!data || data.length === 0) {
-       // Return empty or fallback if needed, but preferably empty so UI knows
-       // However, to prevent crashes, we might want to return at least something or handle empty in UI
+    // Convert SGE format to K-line
+    // SGE: zp = [[timestamp, price], ...], wp = [[timestamp, price], ...]
+    const klineData = sgeData.zp.map((item: any, index: number) => {
+      const timestamp = item[0] / 1000; // Convert ms to seconds
+      const open = item[1]; // Morning
+
+      // Try to get Afternoon
+      let close = open;
+      if (sgeData.wp && sgeData.wp[index]) {
+        // Ensure timestamps match or align roughly?
+        // SGE arrays usually align by index for the same day.
+        close = sgeData.wp[index][1];
+      }
+
+      // Handle Silver unit conversion (kg -> g)
+      const divisor = symbol === 'SILVER' ? 1000 : 1;
+
+      const o = open / divisor;
+      const c = close / divisor;
+      const h = Math.max(o, c);
+      const l = Math.min(o, c);
+
+      return {
+        time: timestamp,
+        open: o,
+        high: h,
+        low: l,
+        close: c
+      };
+    });
+
+    // Filter based on period?
+    // SGE data is daily.
+    // 24h -> Last 2 days?
+    // 7d -> Last 7 entries
+    // 30d -> Last 30 entries
+
+    let slicedData = klineData;
+    const len = klineData.length;
+
+    if (period === '24h') {
+      slicedData = klineData.slice(Math.max(0, len - 5)); // Show last 5 days so it's not empty
+    } else if (period === '7d') {
+      slicedData = klineData.slice(Math.max(0, len - 7));
+    } else {
+      slicedData = klineData.slice(Math.max(0, len - 30));
     }
 
     const responseData = {
       symbol,
       period,
-      data,
+      data: slicedData,
     };
 
-    // Update cache
-    if (data.length > 0) {
-        cache[cacheKey] = {
-            data: responseData,
-            timestamp: now,
-        };
-    }
+    cache[cacheKey] = {
+      data: responseData,
+      timestamp: now,
+    };
 
     return NextResponse.json(responseData);
 

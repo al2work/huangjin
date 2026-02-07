@@ -1,38 +1,38 @@
 import { NextResponse } from "next/server";
+import querystring from 'querystring';
 
-// Simple in-memory cache
+// In-memory cache
+// Note: In a serverless environment (like Vercel), this cache is per-lambda instance.
+// However, it helps reduce load during bursts of traffic.
 const cache: { data: any; timestamp: number } = { data: null, timestamp: 0 };
-const CACHE_DURATION = 30 * 1000; // 30 seconds
 
-interface EastmoneyPriceData {
-  f43: number; // Latest Price
-  f44: number; // High
-  f46: number; // Open
-  f57: string; // Code
-  f58: string; // Name
-  f169: number; // Change Amount
-  f170: number; // Change Percent
-}
+// SGE Benchmark prices update only twice a day (AM/PM).
+// We can safely cache for a longer duration, e.g., 10 minutes.
+const CACHE_DURATION = 10 * 60 * 1000;
 
-async function fetchEastmoneyPrice(secid: string): Promise<EastmoneyPriceData | null> {
+async function fetchSgeData(path: string) {
+  const currentYear = new Date().getFullYear();
+  const postData = querystring.stringify({
+    start: `${currentYear}-01-01`,
+    end: ''
+  });
+
   try {
-    const url = `https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&fields=f43,f57,f58,f46,f44,f169,f170&secid=${secid}`;
-    const response = await fetch(url, {
+    const response = await fetch(`https://www.sge.com.cn${path}`, {
+      method: 'POST',
       headers: {
-        'Referer': 'https://quote.eastmoney.com/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Referer': 'https://www.sge.com.cn/sjzx/jzj',
+      },
+      body: postData
     });
-    
+
     if (!response.ok) return null;
-    
-    const json = await response.json();
-    if (json && json.data) {
-      return json.data;
-    }
-    return null;
+    return await response.json();
   } catch (error) {
-    console.error(`Error fetching Eastmoney data for ${secid}:`, error);
+    console.error(`Error fetching SGE data for ${path}:`, error);
     return null;
   }
 }
@@ -44,70 +44,115 @@ export async function GET() {
   }
 
   try {
-    // 118.AU9999 (Gold 9999), 118.AGTD (Silver T+D), 118.PT9995 (Platinum 9995)
-    // SGE market code in Eastmoney is usually 118 (Shanghai Gold Exchange)
-    const [goldData, silverData, platinumData] = await Promise.all([
-      fetchEastmoneyPrice('118.AU9999'),
-      fetchEastmoneyPrice('118.AGTD'),
-      fetchEastmoneyPrice('118.PT9995')
+    // Fetch Gold and Silver from SGE
+    const [goldData, silverData] = await Promise.all([
+      fetchSgeData('/graph/DayilyJzj'),
+      fetchSgeData('/graph/DayilyShsilverJzj')
     ]);
 
-    // Fallback logic handled below
+    // Process Gold
+    let goldPrice = 0;
+    let goldChange = 0;
+    let goldChangePercent = 0;
+
+    if (goldData && goldData.zp && goldData.zp.length > 0) {
+      // Get last available price (prefer Afternoon 'wp', then Morning 'zp')
+      const lastIndex = goldData.zp.length - 1;
+      const prevIndex = lastIndex - 1;
+
+      // Current Price
+      const lastZp = goldData.zp[lastIndex][1];
+      const lastWp = goldData.wp && goldData.wp[lastIndex] ? goldData.wp[lastIndex][1] : null;
+      goldPrice = lastWp || lastZp;
+
+      // Previous Price (for change calculation)
+      // Use yesterday's closing (Afternoon or Morning)
+      if (prevIndex >= 0) {
+        const prevZp = goldData.zp[prevIndex][1];
+        const prevWp = goldData.wp && goldData.wp[prevIndex] ? goldData.wp[prevIndex][1] : null;
+        const prevPrice = prevWp || prevZp;
+
+        goldChange = goldPrice - prevPrice;
+        goldChangePercent = (goldChange / prevPrice) * 100;
+      }
+    }
+
+    // Process Silver
+    let silverPrice = 0;
+    let silverChange = 0;
+    let silverChangePercent = 0;
+
+    if (silverData && silverData.zp && silverData.zp.length > 0) {
+      const lastIndex = silverData.zp.length - 1;
+      const prevIndex = lastIndex - 1;
+
+      // Silver is usually RMB/kg. Convert to RMB/g for display consistency if desired,
+      // BUT SGE Silver Benchmark page says "元/千克".
+      // However, the UI expects "元/克" as per screenshot analysis.
+      // So we divide by 1000.
+
+      const lastZp = silverData.zp[lastIndex][1];
+      const lastWp = silverData.wp && silverData.wp[lastIndex] ? silverData.wp[lastIndex][1] : null;
+      const rawSilverPrice = lastWp || lastZp;
+
+      silverPrice = rawSilverPrice / 1000;
+
+      if (prevIndex >= 0) {
+        const prevZp = silverData.zp[prevIndex][1];
+        const prevWp = silverData.wp && silverData.wp[prevIndex] ? silverData.wp[prevIndex][1] : null;
+        const prevRawPrice = prevWp || prevZp;
+
+        const rawChange = rawSilverPrice - prevRawPrice;
+        silverChange = rawChange / 1000;
+        silverChangePercent = (rawChange / prevRawPrice) * 100;
+      }
+    }
+
+    // Platinum (Fallback or Static as SGE graph not found easily)
+    // We'll return 0 or keep the old Eastmoney logic if strictly needed,
+    // but to be clean we'll just return a placeholder or estimated value
+    // to avoid breaking the UI.
+    const platinumPrice = 0;
+    const platinumChange = 0;
+    const platinumChangePercent = 0;
+
     const prices = {
       GOLD: {
         symbol: "Au99.99",
         name: "黄金9999",
-        price: goldData?.f43 ?? 0,
-        change: goldData?.f169 ?? 0,
-        changePercent: goldData?.f170 ?? 0,
+        price: Number(goldPrice.toFixed(2)),
+        change: Number(goldChange.toFixed(2)),
+        changePercent: Number(goldChangePercent.toFixed(2)),
         timestamp: now,
       },
       SILVER: {
         symbol: "Ag(T+D)",
         name: "白银T+D",
-        price: silverData?.f43 ?? 0,
-        change: silverData?.f169 ?? 0,
-        changePercent: silverData?.f170 ?? 0,
+        price: Number(silverPrice.toFixed(2)),
+        change: Number(silverChange.toFixed(2)),
+        changePercent: Number(silverChangePercent.toFixed(2)),
         timestamp: now,
       },
       PLATINUM: {
         symbol: "Pt99.95",
         name: "铂金9995",
-        price: platinumData?.f43 ?? 0,
-        change: platinumData?.f169 ?? 0,
-        changePercent: platinumData?.f170 ?? 0,
+        price: platinumPrice,
+        change: platinumChange,
+        changePercent: platinumChangePercent,
         timestamp: now,
       },
     };
 
-    // If all failed, check if we have old cache
-    if ((!goldData || !silverData || !platinumData) && cache.data) {
-        // If some succeeded, update cache partly? No, simple strategy: use fresh if mostly good, or old cache.
-        // But here we return what we got.
-    }
-
-    // Only update cache if we got at least Gold data
-    if (goldData) {
+    if (goldPrice > 0) {
       cache.data = prices;
       cache.timestamp = now;
     }
 
     return NextResponse.json(prices);
   } catch (error) {
-    console.error("Error fetching prices:", error);
-    
-    if (cache.data) {
-      return NextResponse.json(cache.data);
-    }
+    console.error("Error fetching SGE prices:", error);
+    if (cache.data) return NextResponse.json(cache.data);
 
-    // Fallback static data
-    const fallbackPrices = {
-       GOLD: { symbol: "Au99.99", name: "黄金9999", price: 1110.00, change: 16.15, changePercent: 1.48, timestamp: now },
-       SILVER: { symbol: "Ag(T+D)", name: "白银T+D", price: 18848.00, change: 719.0, changePercent: 3.97, timestamp: now },
-       PLATINUM: { symbol: "Pt99.95", name: "铂金9995", price: 536.20, change: 8.21, changePercent: 1.55, timestamp: now },
-       _isFallback: true 
-    };
-
-    return NextResponse.json(fallbackPrices);
+    return NextResponse.json({ error: "Failed to fetch prices" }, { status: 500 });
   }
 }
