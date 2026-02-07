@@ -9,7 +9,7 @@ export function Header() {
         <div className="flex items-center gap-2">
           <Link href="/" className="flex items-center gap-2 font-bold text-xl text-primary-red">
             <Coins className="h-6 w-6 text-primary-gold" />
-            <span>黄金.xin</span>
+            <span>huangjin.xin 黄金.信</span>
           </Link>
           <nav className="hidden md:flex items-center gap-6 ml-6 text-sm font-medium">
             <Link href="/" className="transition-colors hover:text-primary-red">

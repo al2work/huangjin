@@ -1,9 +1,41 @@
 import { NextResponse } from "next/server";
-import yahooFinance from "yahoo-finance2";
 
 // Simple in-memory cache
 const cache: { data: any; timestamp: number } = { data: null, timestamp: 0 };
-const CACHE_DURATION = 60 * 1000; // 1 minute
+const CACHE_DURATION = 30 * 1000; // 30 seconds
+
+interface EastmoneyPriceData {
+  f43: number; // Latest Price
+  f44: number; // High
+  f46: number; // Open
+  f57: string; // Code
+  f58: string; // Name
+  f169: number; // Change Amount
+  f170: number; // Change Percent
+}
+
+async function fetchEastmoneyPrice(secid: string): Promise<EastmoneyPriceData | null> {
+  try {
+    const url = `https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&fields=f43,f57,f58,f46,f44,f169,f170&secid=${secid}`;
+    const response = await fetch(url, {
+      headers: {
+        'Referer': 'https://quote.eastmoney.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+    
+    if (!response.ok) return null;
+    
+    const json = await response.json();
+    if (json && json.data) {
+      return json.data;
+    }
+    return null;
+  } catch (error) {
+    console.error(`Error fetching Eastmoney data for ${secid}:`, error);
+    return null;
+  }
+}
 
 export async function GET() {
   const now = Date.now();
@@ -12,67 +44,67 @@ export async function GET() {
   }
 
   try {
-    const results: any[] = await yahooFinance.quote(['GC=F', 'SI=F', 'PL=F', 'CNY=X']);
+    // 118.AU9999 (Gold 9999), 118.AGTD (Silver T+D), 118.PT9995 (Platinum 9995)
+    // SGE market code in Eastmoney is usually 118 (Shanghai Gold Exchange)
+    const [goldData, silverData, platinumData] = await Promise.all([
+      fetchEastmoneyPrice('118.AU9999'),
+      fetchEastmoneyPrice('118.AGTD'),
+      fetchEastmoneyPrice('118.PT9995')
+    ]);
 
-    const goldQuote = results.find(r => r.symbol === 'GC=F');
-    const silverQuote = results.find(r => r.symbol === 'SI=F');
-    const platinumQuote = results.find(r => r.symbol === 'PL=F');
-    const cnyQuote = results.find(r => r.symbol === 'CNY=X');
-
-    const usdToCny = cnyQuote?.regularMarketPrice || 7.2;
-    const ozToGram = 31.1035;
-
-    const convertPrice = (price: number) => Number(((price * usdToCny) / ozToGram).toFixed(2));
-    const convertChange = (change: number) => Number(((change * usdToCny) / ozToGram).toFixed(2));
-
+    // Fallback logic handled below
     const prices = {
       GOLD: {
-        symbol: "XAU",
-        name: "现货黄金",
-        price: convertPrice(goldQuote?.regularMarketPrice || 0),
-        change: convertChange(goldQuote?.regularMarketChange || 0),
-        changePercent: Number((goldQuote?.regularMarketChangePercent || 0).toFixed(2)),
-        timestamp: goldQuote?.regularMarketTime?.getTime() || now,
+        symbol: "Au99.99",
+        name: "黄金9999",
+        price: goldData?.f43 ?? 0,
+        change: goldData?.f169 ?? 0,
+        changePercent: goldData?.f170 ?? 0,
+        timestamp: now,
       },
       SILVER: {
-        symbol: "XAG",
-        name: "现货白银",
-        price: convertPrice(silverQuote?.regularMarketPrice || 0),
-        change: convertChange(silverQuote?.regularMarketChange || 0),
-        changePercent: Number((silverQuote?.regularMarketChangePercent || 0).toFixed(2)),
-        timestamp: silverQuote?.regularMarketTime?.getTime() || now,
+        symbol: "Ag(T+D)",
+        name: "白银T+D",
+        price: silverData?.f43 ?? 0,
+        change: silverData?.f169 ?? 0,
+        changePercent: silverData?.f170 ?? 0,
+        timestamp: now,
       },
       PLATINUM: {
-        symbol: "XPT",
-        name: "现货铂金",
-        price: convertPrice(platinumQuote?.regularMarketPrice || 0),
-        change: convertChange(platinumQuote?.regularMarketChange || 0),
-        changePercent: Number((platinumQuote?.regularMarketChangePercent || 0).toFixed(2)),
-        timestamp: platinumQuote?.regularMarketTime?.getTime() || now,
+        symbol: "Pt99.95",
+        name: "铂金9995",
+        price: platinumData?.f43 ?? 0,
+        change: platinumData?.f169 ?? 0,
+        changePercent: platinumData?.f170 ?? 0,
+        timestamp: now,
       },
     };
 
-    cache.data = prices;
-    cache.timestamp = now;
+    // If all failed, check if we have old cache
+    if ((!goldData || !silverData || !platinumData) && cache.data) {
+        // If some succeeded, update cache partly? No, simple strategy: use fresh if mostly good, or old cache.
+        // But here we return what we got.
+    }
+
+    // Only update cache if we got at least Gold data
+    if (goldData) {
+      cache.data = prices;
+      cache.timestamp = now;
+    }
 
     return NextResponse.json(prices);
   } catch (error) {
     console.error("Error fetching prices:", error);
-
-    // If cache exists (even old), return it to avoid frontend crash
+    
     if (cache.data) {
       return NextResponse.json(cache.data);
     }
 
-    // Fallback data (Static realistic data) if no cache and fetch failed
-    // This ensures the site always looks good even if API fails
-    const now = Date.now();
+    // Fallback static data
     const fallbackPrices = {
-       GOLD: { symbol: "XAU", name: "现货黄金", price: 1107.66, change: 13.44, changePercent: 1.23, timestamp: now },
-       SILVER: { symbol: "XAG", name: "现货白银", price: 12.85, change: -0.12, changePercent: -0.92, timestamp: now },
-       PLATINUM: { symbol: "XPT", name: "现货铂金", price: 235.40, change: 1.85, changePercent: 0.79, timestamp: now },
-       // Note: We intentionally do NOT add 'error' key here so the UI displays these values 
-       // instead of an error message, providing a better user experience (degraded but functional).
+       GOLD: { symbol: "Au99.99", name: "黄金9999", price: 1110.00, change: 16.15, changePercent: 1.48, timestamp: now },
+       SILVER: { symbol: "Ag(T+D)", name: "白银T+D", price: 18848.00, change: 719.0, changePercent: 3.97, timestamp: now },
+       PLATINUM: { symbol: "Pt99.95", name: "铂金9995", price: 536.20, change: 8.21, changePercent: 1.55, timestamp: now },
        _isFallback: true 
     };
 
