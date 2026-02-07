@@ -33,12 +33,6 @@ export function Header() {
               className="h-9 w-64 rounded-md border border-input bg-transparent px-3 py-1 pl-9 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
           </div>
-          <Button variant="outline" size="sm" className="hidden md:flex">
-            登录
-          </Button>
-          <Button size="sm" className="hidden md:flex bg-primary-gold hover:bg-primary-gold/90 text-white border-none">
-            注册
-          </Button>
           <Button variant="ghost" size="icon" className="md:hidden">
             <Menu className="h-5 w-5" />
             <span className="sr-only">菜单</span>
