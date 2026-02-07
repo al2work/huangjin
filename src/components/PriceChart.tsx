@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createChart, ColorType, IChartApi, ISeriesApi, Time } from "lightweight-charts";
+import { createChart, ColorType, IChartApi, ISeriesApi, Time, CandlestickSeries } from "lightweight-charts";
 
 export function PriceChart() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -13,7 +13,7 @@ export function PriceChart() {
     if (!chartContainerRef.current) return;
 
     // Initialize chart
-    const chart: any = createChart(chartContainerRef.current, {
+    const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#737373",
@@ -33,7 +33,7 @@ export function PriceChart() {
       },
     });
 
-    const series = chart.addCandlestickSeries({
+    const series = chart.addSeries(CandlestickSeries, {
       upColor: "#ef4444", // red-500
       downColor: "#22c55e", // green-500
       borderVisible: false,
