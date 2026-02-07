@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowUp, ArrowRight, TrendingUp, BarChart3, Newspaper } from "lucide-react";
 import Link from "next/link";
 import { PriceChart } from "@/components/PriceChart";
+import { PriceCards } from "@/components/PriceCards";
 
 export default function Home() {
   const news = [
@@ -55,64 +56,7 @@ export default function Home() {
 
       {/* Real-time Prices */}
       <section className="container mx-auto px-4 md:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Gold Card */}
-          <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <span className="w-2 h-8 bg-primary-gold rounded-full"></span>
-                现货黄金 (XAU)
-              </h3>
-              <span className="text-sm text-muted-foreground">实时</span>
-            </div>
-            <div className="flex items-end justify-between mb-2">
-              <span className="text-4xl font-bold text-primary-red">1,107.66</span>
-              <span className="text-sm text-muted-foreground mb-1">元/克</span>
-            </div>
-            <div className="flex items-center text-primary-red text-sm font-medium">
-              <ArrowUp className="h-4 w-4 mr-1" />
-              +13.44 (+1.23%)
-            </div>
-          </div>
-
-          {/* Silver Card */}
-          <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <span className="w-2 h-8 bg-gray-400 rounded-full"></span>
-                现货白银 (XAG)
-              </h3>
-              <span className="text-sm text-muted-foreground">实时</span>
-            </div>
-            <div className="flex items-end justify-between mb-2">
-              <span className="text-4xl font-bold text-green-600">12.85</span>
-              <span className="text-sm text-muted-foreground mb-1">元/克</span>
-            </div>
-            <div className="flex items-center text-green-600 text-sm font-medium">
-              <ArrowUp className="h-4 w-4 mr-1 rotate-180" />
-              -0.12 (-0.92%)
-            </div>
-          </div>
-
-          {/* Platinum Card */}
-          <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <span className="w-2 h-8 bg-blue-400 rounded-full"></span>
-                现货铂金 (XPT)
-              </h3>
-              <span className="text-sm text-muted-foreground">实时</span>
-            </div>
-            <div className="flex items-end justify-between mb-2">
-              <span className="text-4xl font-bold text-primary-red">235.40</span>
-              <span className="text-sm text-muted-foreground mb-1">元/克</span>
-            </div>
-            <div className="flex items-center text-primary-red text-sm font-medium">
-              <ArrowUp className="h-4 w-4 mr-1" />
-              +1.85 (+0.79%)
-            </div>
-          </div>
-        </div>
+        <PriceCards />
       </section>
 
       {/* Chart Section */}
@@ -148,7 +92,7 @@ export default function Home() {
             <div key={item.id} className="group cursor-pointer">
               <div className="aspect-video bg-muted rounded-lg mb-3 overflow-hidden">
                 <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 group-hover:scale-105 transition-transform duration-300 flex items-center justify-center text-muted-foreground/20">
-                    <Newspaper className="h-12 w-12" />
+                  <Newspaper className="h-12 w-12" />
                 </div>
               </div>
               <div className="space-y-2">
