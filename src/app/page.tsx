@@ -38,12 +38,12 @@ export default function Home() {
               <span className="text-sm text-muted-foreground">实时</span>
             </div>
             <div className="flex items-end justify-between mb-2">
-              <span className="text-4xl font-bold text-primary-red">485.50</span>
+              <span className="text-4xl font-bold text-primary-red">1,107.66</span>
               <span className="text-sm text-muted-foreground mb-1">元/克</span>
             </div>
             <div className="flex items-center text-primary-red text-sm font-medium">
               <ArrowUp className="h-4 w-4 mr-1" />
-              +2.30 (+0.48%)
+              +13.44 (+1.23%)
             </div>
           </div>
 
@@ -57,12 +57,12 @@ export default function Home() {
               <span className="text-sm text-muted-foreground">实时</span>
             </div>
             <div className="flex items-end justify-between mb-2">
-              <span className="text-4xl font-bold text-green-600">5.82</span>
+              <span className="text-4xl font-bold text-green-600">12.85</span>
               <span className="text-sm text-muted-foreground mb-1">元/克</span>
             </div>
             <div className="flex items-center text-green-600 text-sm font-medium">
               <ArrowUp className="h-4 w-4 mr-1 rotate-180" />
-              -0.05 (-0.85%)
+              -0.12 (-0.92%)
             </div>
           </div>
 
@@ -76,12 +76,12 @@ export default function Home() {
               <span className="text-sm text-muted-foreground">实时</span>
             </div>
             <div className="flex items-end justify-between mb-2">
-              <span className="text-4xl font-bold text-primary-red">215.30</span>
+              <span className="text-4xl font-bold text-primary-red">235.40</span>
               <span className="text-sm text-muted-foreground mb-1">元/克</span>
             </div>
             <div className="flex items-center text-primary-red text-sm font-medium">
               <ArrowUp className="h-4 w-4 mr-1" />
-              +1.20 (+0.56%)
+              +1.85 (+0.79%)
             </div>
           </div>
         </div>
