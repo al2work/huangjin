@@ -1,8 +1,36 @@
 import { Button } from "@/components/ui/button";
 import { ArrowUp, ArrowRight, TrendingUp, BarChart3, Newspaper } from "lucide-react";
 import Link from "next/link";
+import { PriceChart } from "@/components/PriceChart";
 
 export default function Home() {
+  const news = [
+    {
+      id: 1,
+      tag: "市场热点",
+      title: "金价站稳1100元关口，多头目标直指1200元？",
+      summary: "随着全球央行持续购金及地缘政治避险需求升温，国内现货黄金价格本周强势突破1100元/克大关，创下历史新高...",
+      author: "张分析师",
+      time: "2小时前"
+    },
+    {
+      id: 2,
+      tag: "机构观点",
+      title: "高盛上调2026年黄金目标价：超级周期尚未结束",
+      summary: "高盛最新研报指出，在实际利率下行和美元信用重构的双重驱动下，黄金牛市仍有下半场，建议投资者逢低布局...",
+      author: "李研究员",
+      time: "4小时前"
+    },
+    {
+      id: 3,
+      tag: "宏观分析",
+      title: "美联储降息路径渐明，贵金属市场迎来新一轮爆发期",
+      summary: "最新的通胀数据为美联储降息扫清了障碍，市场普遍预期下月将开启降息周期，这将为零息资产黄金提供强劲支撑...",
+      author: "王宏观",
+      time: "6小时前"
+    }
+  ];
+
   return (
     <div className="flex flex-col gap-8 pb-8">
       {/* Hero Section */}
@@ -101,12 +129,8 @@ export default function Home() {
               <Button variant="ghost" size="sm" className="h-8 text-xs">30D</Button>
             </div>
           </div>
-          <div className="h-[400px] bg-muted/20 flex items-center justify-center text-muted-foreground">
-            {/* Chart Component Placeholder */}
-            <div className="text-center">
-              <p>图表加载中...</p>
-              <p className="text-xs mt-2">（此处将集成TradingView图表）</p>
-            </div>
+          <div className="h-[400px] bg-card flex items-center justify-center text-muted-foreground relative">
+            <PriceChart />
           </div>
         </div>
       </section>
@@ -120,23 +144,25 @@ export default function Home() {
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="group cursor-pointer">
+          {news.map((item) => (
+            <div key={item.id} className="group cursor-pointer">
               <div className="aspect-video bg-muted rounded-lg mb-3 overflow-hidden">
-                <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 group-hover:scale-105 transition-transform duration-300" />
+                <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 group-hover:scale-105 transition-transform duration-300 flex items-center justify-center text-muted-foreground/20">
+                    <Newspaper className="h-12 w-12" />
+                </div>
               </div>
               <div className="space-y-2">
-                <span className="text-xs text-primary-red font-medium">专家观点</span>
-                <h3 className="font-semibold group-hover:text-primary-red transition-colors">
-                  本周黄金价格能否突破2100美元大关？美联储最新纪要解读
+                <span className="text-xs text-primary-red font-medium px-2 py-0.5 bg-primary-red/10 rounded-full">{item.tag}</span>
+                <h3 className="font-semibold group-hover:text-primary-red transition-colors line-clamp-2 min-h-[3rem]">
+                  {item.title}
                 </h3>
                 <p className="text-sm text-muted-foreground line-clamp-2">
-                  随着通胀数据回落，市场对降息预期升温，黄金作为避险资产再次受到追捧...
+                  {item.summary}
                 </p>
-                <div className="flex items-center text-xs text-muted-foreground gap-2">
-                  <span>张分析师</span>
+                <div className="flex items-center text-xs text-muted-foreground gap-2 mt-2">
+                  <span>{item.author}</span>
                   <span>•</span>
-                  <span>2小时前</span>
+                  <span>{item.time}</span>
                 </div>
               </div>
             </div>
