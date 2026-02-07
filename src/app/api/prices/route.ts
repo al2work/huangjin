@@ -58,11 +58,22 @@ export async function GET() {
     return NextResponse.json(prices);
   } catch (error) {
     console.error("Error fetching prices:", error);
-    // If real fetch fails and we have cache (even old), return it as fallback?
-    // Or return error.
-    return NextResponse.json(
-      { error: "Failed to fetch price data" },
-      { status: 500 }
-    );
+
+    // If cache exists (even old), return it to avoid frontend crash
+    if (cache.data) {
+      return NextResponse.json(cache.data);
+    }
+
+    // Fallback data (all zeros) if no cache and fetch failed
+    // This prevents frontend from crashing with "undefined" properties
+    const now = Date.now();
+    const fallbackPrices = {
+      GOLD: { symbol: "XAU", name: "现货黄金", price: 0, change: 0, changePercent: 0, timestamp: now },
+      SILVER: { symbol: "XAG", name: "现货白银", price: 0, change: 0, changePercent: 0, timestamp: now },
+      PLATINUM: { symbol: "XPT", name: "现货铂金", price: 0, change: 0, changePercent: 0, timestamp: now },
+      error: "Failed to fetch data"
+    };
+
+    return NextResponse.json(fallbackPrices);
   }
 }

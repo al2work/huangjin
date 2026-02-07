@@ -26,12 +26,30 @@ export function PriceCards() {
     refreshInterval: 5000,
   });
 
-  if (error) return <div>Failed to load prices</div>;
-  if (isLoading || !data) return <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
-    {[1, 2, 3].map((i) => (
-      <div key={i} className="h-40 rounded-xl bg-muted"></div>
-    ))}
-  </div>;
+  if (error || (data && "error" in data)) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+         {[1, 2, 3].map((i) => (
+           <div key={i} className="rounded-xl border bg-card text-card-foreground shadow-sm p-6 flex items-center justify-center h-40">
+             <div className="text-muted-foreground text-center">
+               <p>数据获取失败</p>
+               <p className="text-xs mt-1">请稍后重试</p>
+             </div>
+           </div>
+         ))}
+      </div>
+    );
+  }
+
+  if (isLoading || !data || !data.GOLD || !data.SILVER || !data.PLATINUM) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-40 rounded-xl bg-muted"></div>
+        ))}
+      </div>
+    );
+  }
 
   const cards = [
     {
