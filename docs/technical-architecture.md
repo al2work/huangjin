@@ -4,8 +4,8 @@
 graph TD
     A[用户浏览器] --> B[Next.js前端应用]
     B --> C[黄金价格API服务]
-    C --> D[Mock数据生成器]
-    C --> E[外部黄金API]
+    C --> D[SGE数据爬虫/API]
+    C --> E[缓存层]
 
     subgraph "前端层"
         B
@@ -13,11 +13,11 @@ graph TD
 
     subgraph "服务层"
         C
-        D
+        E
     end
 
     subgraph "外部服务"
-        E
+        D
     end
 ```
 
@@ -27,7 +27,7 @@ graph TD
 - **初始化工具**: create-next-app
 - **后端**: 无独立后端，使用Next.js API Routes处理数据获取
 - **数据库**: 无数据库，使用内存缓存和API直接获取
-- **图表库**: TradingView Lightweight Charts 或 Chart.js
+- **图表库**: lightweight-charts@5
 - **状态管理**: React Context + SWR 进行数据获取和缓存
 - **UI组件**: Headless UI + 自定义组件
 
@@ -37,7 +37,7 @@ graph TD
 |-------|---------|
 | / | 首页，展示实时价格和24小时趋势 |
 | /details/[symbol] | 价格详情页，展示具体品种的详细信息和历史趋势 |
-| /analysis | 市场分析页面，展示专家观点和新闻资讯 |
+| /about | 关于页面，展示网站信息和数据来源 |
 | /api/prices | API路由，获取实时价格数据 |
 | /api/history | API路由，获取历史价格数据 |
 
@@ -103,16 +103,20 @@ GET /api/history?symbol=GOLD&period=24h
 
 ## 5. 数据获取策略
 
-### 5.1 Mock数据生成器
-- 使用Node.js编写数据生成服务
-- 模拟真实黄金价格波动，基于随机游走算法
-- 每5秒生成新的价格数据
-- 支持多个品种 (黄金、白银、铂金)
+### 5.1 SGE数据源集成
+- 从上海黄金交易所官网爬取实时价格数据
+- 主要数据接口：SGE Benchmark (DayilyJzj / DayilyShsilverJzj)
+- 获取历史数据：SGE Benchmark History
+- 铂金数据：暂无直接基准图，作为占位符处理
 
-### 5.2 外部API集成
-- 集成免费黄金价格API (如: Metals-API, GoldAPI)
-- 实现API降级策略，外部API不可用时自动切换到Mock数据
-- 添加数据缓存机制，减少API调用次数
+### 5.2 缓存策略
+- 实时价格：10分钟缓存（SGE每日更新两次）
+- 历史数据：1小时缓存
+- 使用内存缓存减少频繁请求，提升响应速度
+
+### 5.3 部署限制
+- 使用Vercel免费版部署，存在速率限制
+- 实现请求频率控制，避免触发平台限制
 
 ## 6. 性能优化
 
@@ -129,16 +133,31 @@ GET /api/history?symbol=GOLD&period=24h
 
 ## 7. 部署配置
 
-### 7.1 环境变量
+### 7.1 容器化部署 (Docker)
+项目支持标准的 Docker 容器化部署，采用多阶段构建（Multi-stage Build）以优化镜像体积。
+
+**构建流程：**
+1. **base**: 基础 Node.js Alpine 镜像
+2. **deps**: 安装项目依赖
+3. **builder**: 构建 Next.js 应用，启用 `output: "standalone"`
+4. **runner**: 生产环境运行镜像，仅包含必要的 standalone 文件和静态资源
+
+**Dockerfile 特性：**
+- 基于 `node:18-alpine`，体积小且安全
+- 非 root 用户运行 (nextjs)，提高安全性
+- 利用 Next.js 的 Standalone 模式，大幅减少镜像体积
+
+### 7.2 环境变量
 ```
 # API配置
 NEXT_PUBLIC_API_URL=https://huangjin.xin
-GOLD_API_KEY=your_api_key_here
-GOLD_API_URL=https://api.metals-api.com
+
+# 缓存配置
+CACHE_REALTIME_TTL=600000  # 实时价格缓存10分钟
+CACHE_HISTORY_TTL=3600000  # 历史数据缓存1小时
 
 # 功能开关
-NEXT_PUBLIC_ENABLE_MOCK_DATA=true
-NEXT_PUBLIC_UPDATE_INTERVAL=5000
+NEXT_PUBLIC_UPDATE_INTERVAL=600000  # 10分钟更新间隔
 ```
 
 ### 7.2 构建配置
