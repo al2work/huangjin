@@ -1,38 +1,68 @@
 import { NextResponse } from "next/server";
+import yahooFinance from "yahoo-finance2";
+
+// Simple in-memory cache
+const cache: { data: any; timestamp: number } = { data: null, timestamp: 0 };
+const CACHE_DURATION = 60 * 1000; // 1 minute
 
 export async function GET() {
-  // Mock data with slight randomization
-  const randomVariation = (base: number) => {
-    const percent = (Math.random() - 0.5) * 0.005; // +/- 0.25%
-    return base * (1 + percent);
-  };
+  const now = Date.now();
+  if (cache.data && (now - cache.timestamp < CACHE_DURATION)) {
+    return NextResponse.json(cache.data);
+  }
 
-  const prices = {
-    GOLD: {
-      symbol: "XAU",
-      name: "现货黄金",
-      price: randomVariation(1107.66),
-      change: 13.44,
-      changePercent: 1.23,
-      timestamp: Date.now(),
-    },
-    SILVER: {
-      symbol: "XAG",
-      name: "现货白银",
-      price: randomVariation(12.85),
-      change: -0.12,
-      changePercent: -0.92,
-      timestamp: Date.now(),
-    },
-    PLATINUM: {
-      symbol: "XPT",
-      name: "现货铂金",
-      price: randomVariation(235.40),
-      change: 1.85,
-      changePercent: 0.79,
-      timestamp: Date.now(),
-    },
-  };
+  try {
+    const results: any[] = await yahooFinance.quote(['GC=F', 'SI=F', 'PL=F', 'CNY=X']);
 
-  return NextResponse.json(prices);
+    const goldQuote = results.find(r => r.symbol === 'GC=F');
+    const silverQuote = results.find(r => r.symbol === 'SI=F');
+    const platinumQuote = results.find(r => r.symbol === 'PL=F');
+    const cnyQuote = results.find(r => r.symbol === 'CNY=X');
+
+    const usdToCny = cnyQuote?.regularMarketPrice || 7.2;
+    const ozToGram = 31.1035;
+
+    const convertPrice = (price: number) => Number(((price * usdToCny) / ozToGram).toFixed(2));
+    const convertChange = (change: number) => Number(((change * usdToCny) / ozToGram).toFixed(2));
+
+    const prices = {
+      GOLD: {
+        symbol: "XAU",
+        name: "现货黄金",
+        price: convertPrice(goldQuote?.regularMarketPrice || 0),
+        change: convertChange(goldQuote?.regularMarketChange || 0),
+        changePercent: Number((goldQuote?.regularMarketChangePercent || 0).toFixed(2)),
+        timestamp: goldQuote?.regularMarketTime?.getTime() || now,
+      },
+      SILVER: {
+        symbol: "XAG",
+        name: "现货白银",
+        price: convertPrice(silverQuote?.regularMarketPrice || 0),
+        change: convertChange(silverQuote?.regularMarketChange || 0),
+        changePercent: Number((silverQuote?.regularMarketChangePercent || 0).toFixed(2)),
+        timestamp: silverQuote?.regularMarketTime?.getTime() || now,
+      },
+      PLATINUM: {
+        symbol: "XPT",
+        name: "现货铂金",
+        price: convertPrice(platinumQuote?.regularMarketPrice || 0),
+        change: convertChange(platinumQuote?.regularMarketChange || 0),
+        changePercent: Number((platinumQuote?.regularMarketChangePercent || 0).toFixed(2)),
+        timestamp: platinumQuote?.regularMarketTime?.getTime() || now,
+      },
+    };
+
+    cache.data = prices;
+    cache.timestamp = now;
+
+    return NextResponse.json(prices);
+  } catch (error) {
+    console.error("Error fetching prices:", error);
+    // If real fetch fails and we have cache (even old), return it as fallback?
+    // Or return error.
+    return NextResponse.json(
+      { error: "Failed to fetch price data" },
+      { status: 500 }
+    );
+  }
 }
